@@ -1,6 +1,8 @@
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
+from arq import create_pool
+from arq.connections import RedisSettings
 from fastapi import FastAPI
 from fastapi.responses import Response
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
@@ -9,6 +11,7 @@ from orchestrator.api.middleware import RequestContextMiddleware
 from orchestrator.api.routes import health, tasks
 from orchestrator.api.routes.tasks import DEFAULT_USER_ID
 from orchestrator.config.logging import configure_logging
+from orchestrator.config.settings import get_settings
 from orchestrator.db.models import User
 from orchestrator.db.session import get_sessionmaker
 
@@ -25,7 +28,11 @@ async def _ensure_default_user() -> None:
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     configure_logging()
     await _ensure_default_user()
-    yield
+    app.state.arq_pool = await create_pool(RedisSettings.from_dsn(get_settings().redis_url))
+    try:
+        yield
+    finally:
+        await app.state.arq_pool.close()
 
 
 app = FastAPI(

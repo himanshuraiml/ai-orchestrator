@@ -17,6 +17,7 @@ from orchestrator.orchestration.graph import WorkflowGraph
 from orchestrator.orchestration.planner import AutonomousPlanner, TemplatePlanner
 from orchestrator.orchestration.scheduler import StepScheduler
 from orchestrator.routing.policies import PolicyEngine
+from orchestrator.routing.router import ModelRouter, NoEligibleModelError
 
 logger = get_logger(__name__)
 
@@ -54,12 +55,14 @@ class Orchestrator:
         planner: AutonomousPlanner | TemplatePlanner | None = None,
         scheduler: StepScheduler | None = None,
         policy_engine: PolicyEngine | None = None,
+        model_router: ModelRouter | None = None,
         db_session_factory: Any | None = None,
         event_broadcaster: EventBroadcaster | None = None,
     ) -> None:
         self.planner = planner or AutonomousPlanner()
         self.scheduler = scheduler
         self.policy_engine = policy_engine or PolicyEngine()
+        self.model_router = model_router
         self.db_session_factory = db_session_factory
         self.event_broadcaster = event_broadcaster or EventBroadcaster()
 
@@ -81,8 +84,13 @@ class Orchestrator:
             graph = plan_or_coro
 
         ttype = request.requirements.task_type if request.requirements else None
-        prompt_text = getattr(request, "prompt", None) or getattr(request, "goal", "")
+        prompt_text = request.goal
         logger.info("Generated workflow graph for request", task_type=ttype, steps=len(graph.steps))
+
+        # 2b. Resolve model selection for LLM steps the planner left open
+        # (the planner prompt explicitly allows executor_id: null, "let
+        # router pick" — nothing else in the pipeline performs that pick).
+        self._resolve_llm_step_models(graph, request)
 
         # Generate run_id if not provided
         run_uuid = uuid.UUID(str(run_id)) if run_id else uuid.uuid4()
@@ -145,6 +153,26 @@ class Orchestrator:
             )
             raise
 
+    def _resolve_llm_step_models(self, graph: WorkflowGraph, request: TaskRequest) -> None:
+        if self.model_router is None:
+            return
+
+        requirements_for = getattr(self.planner, "requirements_for", None)
+
+        for step in graph.steps.values():
+            if step.executor_type != "llm" or step.executor_id is not None:
+                continue
+
+            requirements = requirements_for(step, request) if requirements_for else request.requirements
+            try:
+                step.executor_id = self.model_router.route(requirements).id
+            except NoEligibleModelError as exc:
+                logger.warning(
+                    "No eligible model for step; will fail at execution",
+                    step_id=step.id,
+                    error=str(exc),
+                )
+
     async def _checkpoint_workflow_init(
         self, run_uuid: uuid.UUID, task_uuid: uuid.UUID, graph: WorkflowGraph
     ) -> None:
@@ -156,14 +184,24 @@ class Orchestrator:
             from orchestrator.db.models import WorkflowRun as DBWorkflowRun
 
             async with self.db_session_factory() as session:
-                run_model = DBWorkflowRun(
-                    id=run_uuid,
-                    task_id=task_uuid,
-                    status=ExecutionStatus.RUNNING.value,
-                    plan={"steps": [s.id for s in graph.steps.values()]},
-                    started_at=datetime.datetime.now(datetime.UTC),
-                )
-                session.add(run_model)
+                # Upsert: the caller may have already created a placeholder
+                # WorkflowRun row (e.g. to return its id in a 202 response
+                # before the job actually starts), and a resumed run reuses
+                # an existing row rather than duplicating it.
+                run_model = await session.get(DBWorkflowRun, run_uuid)
+                if run_model is None:
+                    run_model = DBWorkflowRun(id=run_uuid, task_id=task_uuid)
+                    session.add(run_model)
+                run_model.status = ExecutionStatus.RUNNING.value
+                run_model.plan = {"steps": [s.id for s in graph.steps.values()]}
+                run_model.started_at = datetime.datetime.now(datetime.UTC)
+
+                # Flush the run row first — without a declared relationship()
+                # between WorkflowRun and TaskStep, the session's unit-of-work
+                # doesn't order these inserts by FK dependency on its own, so
+                # the TaskStep inserts below can otherwise land first and
+                # violate task_steps_workflow_run_id_fkey.
+                await session.flush()
 
                 for step in graph.steps.values():
                     step_model = DBTaskStep(
@@ -197,20 +235,41 @@ class Orchestrator:
         try:
             from sqlalchemy import update
 
+            from orchestrator.db.models import TaskStep as DBTaskStep
             from orchestrator.db.models import WorkflowRun as DBWorkflowRun
 
+            completed_at = datetime.datetime.now(datetime.UTC)
+
             async with self.db_session_factory() as session:
-                stmt = (
+                run_stmt = (
                     update(DBWorkflowRun)
                     .where(DBWorkflowRun.id == run_uuid)
                     .values(
                         status=status.value,
                         total_cost_usd=total_cost,
                         total_latency_ms=total_latency,
-                        completed_at=datetime.datetime.now(datetime.UTC),
+                        completed_at=completed_at,
                     )
                 )
-                await session.execute(stmt)
+                await session.execute(run_stmt)
+
+                # Also reflect each step's final outcome — otherwise
+                # task_steps rows are stuck at their initial "pending"
+                # snapshot from _checkpoint_workflow_init forever, and
+                # GET /v1/runs/{run_id}/steps never shows real results.
+                for step in graph.steps.values():
+                    step_stmt = (
+                        update(DBTaskStep)
+                        .where(DBTaskStep.workflow_run_id == run_uuid, DBTaskStep.step_key == step.id)
+                        .values(
+                            status=step.status.value,
+                            executor_id=step.executor_id,
+                            output=step.result or ({"error": step.error} if step.error else None),
+                            completed_at=completed_at,
+                        )
+                    )
+                    await session.execute(step_stmt)
+
                 await session.commit()
         except Exception as exc:  # noqa: BLE001
             logger.warning("Failed to update completion DB checkpoint", error=str(exc))

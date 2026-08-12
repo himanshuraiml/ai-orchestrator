@@ -9,6 +9,7 @@ from pathlib import Path
 
 from structlog import get_logger
 
+from orchestrator.config.settings import get_settings
 from orchestrator.domain.enums import PrivacyLevel, QualityLevel, TaskType
 from orchestrator.domain.tasks import TaskRequest, TaskRequirements
 from orchestrator.domain.workflows import TaskStep
@@ -28,9 +29,9 @@ class TemplatePlanner:
     """Deterministic rule-based planner used as fallback or template engine."""
 
     def create_plan(self, request: TaskRequest) -> WorkflowGraph:
-        graph = WorkflowGraph(max_steps=20)
+        graph = WorkflowGraph(max_steps=get_settings().max_workflow_steps)
         ttype = (request.requirements.task_type if request.requirements else None) or TaskType.GENERAL
-        prompt_text = getattr(request, "prompt", None) or getattr(request, "goal", "")
+        prompt_text = request.goal
 
         if ttype == TaskType.CODING:
             s1 = TaskStep(
@@ -133,8 +134,10 @@ class AutonomousPlanner:
 
         try:
             template = self._load_prompt_template()
-            prompt_text = getattr(request, "prompt", None) or getattr(request, "goal", "")
-            prompt = template.format(request_prompt=prompt_text)
+            prompt_text = request.goal
+            # Not str.format(): the template's JSON schema example is full of
+            # literal `{`/`}`, which .format() would try to parse as fields.
+            prompt = template.replace("{request_prompt}", prompt_text)
 
             messages = [{"role": "user", "content": prompt}]
             generation = await self.gateway.generate(
@@ -163,7 +166,7 @@ class AutonomousPlanner:
         if not steps_data:
             raise PlannerError("Planner output JSON contains no steps")
 
-        graph = WorkflowGraph(max_steps=20)
+        graph = WorkflowGraph(max_steps=get_settings().max_workflow_steps)
         for sdata in steps_data:
             etype = sdata.get("executor_type", "llm")
             if etype not in ALLOWED_EXECUTOR_TYPES:

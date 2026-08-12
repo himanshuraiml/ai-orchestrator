@@ -41,6 +41,6 @@ class PolicyEngine:
 
     def validate_request(self, request: Any) -> None:
         """Validates basic request constraints."""
-        if not getattr(request, "prompt", None) and not getattr(request, "goal", None):
+        if not request.goal:
             raise ValueError("Task request prompt/goal cannot be empty")
 

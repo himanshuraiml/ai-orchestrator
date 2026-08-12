@@ -94,6 +94,17 @@ class ToolExecutor(Executor):
                 tool_id = self.tool_router.select(context.get("required_capabilities", set())).id
             except Exception as exc:  # noqa: BLE001 — NoSuitableToolError and friends
                 return ExecutionResult(success=False, error_type=type(exc).__name__, error_message=str(exc))
+        elif self.tool_router is not None:
+            # Explicit executor_id (e.g. planner-selected) still needs a
+            # policy check — auto-selection already filters through
+            # tool_router.candidates(), but a direct pick must too.
+            allowed = any(tool.id == tool_id for tool in self.tool_router.candidates(set()))
+            if not allowed:
+                return ExecutionResult(
+                    success=False,
+                    error_type="ToolNotPermitted",
+                    error_message=f"Tool {tool_id!r} is not permitted by current policy",
+                )
 
         adapter = self.adapters.get(tool_id)
         if adapter is None:
