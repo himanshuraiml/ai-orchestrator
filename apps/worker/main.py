@@ -7,7 +7,6 @@ from typing import Any, ClassVar
 
 from arq.connections import RedisSettings
 from orchestrator.routing.model_router import ModelRouter
-from orchestrator.routing.policies import PolicyEngine
 from orchestrator.routing.scorer import ModelScorer
 from structlog import get_logger
 
@@ -25,6 +24,7 @@ from orchestrator.orchestration.planner import AutonomousPlanner
 from orchestrator.orchestration.scheduler import StepScheduler
 from orchestrator.providers.litellm_gateway import LiteLLMGateway
 from orchestrator.providers.local_gateway import LocalGateway
+from orchestrator.routing.policies import PolicyEngine
 from orchestrator.tools.adapters.browser import BrowserAdapter
 from orchestrator.tools.adapters.filesystem import FilesystemAdapter
 from orchestrator.tools.adapters.ocr import OCRAdapter

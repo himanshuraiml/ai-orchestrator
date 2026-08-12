@@ -9,7 +9,7 @@ from pathlib import Path
 
 from structlog import get_logger
 
-from orchestrator.domain.enums import TaskType
+from orchestrator.domain.enums import PrivacyLevel, QualityLevel, TaskType
 from orchestrator.domain.tasks import TaskRequest, TaskRequirements
 from orchestrator.domain.workflows import TaskStep
 from orchestrator.orchestration.graph import WorkflowGraph

@@ -142,44 +142,45 @@
 > **Study first:** [Open-Multi-Agent](https://github.com/open-multi-agent/open-multi-agent) — DAG + checkpoint/resume
 
 ### 3.1 Workflow Graph
-- [ ] **3.1.1** Implement `WorkflowGraph` — arch doc §20
+- [x] **3.1.1** Implement `WorkflowGraph` — arch doc §20
   - `ready_steps(completed)` · `is_complete(completed)`
   - **Add:** cycle detection (critical gap for autonomous planner)
   - **Add:** `max_steps` hard cap (default 25 for personal use)
-- [ ] **3.1.2** Implement `TaskStep` dataclass — arch doc §19
-- [ ] **3.1.3** Implement `state_machine.py` — step status transitions
-- [ ] **3.1.4** Implement `scheduler.py` — `asyncio.gather` for parallel steps
+- [x] **3.1.2** Implement `TaskStep` dataclass — arch doc §19
+- [x] **3.1.3** Implement `state_machine.py` — step status transitions
+- [x] **3.1.4** Implement `scheduler.py` — `asyncio.gather` for parallel steps
 
 ### 3.2 Autonomous Planner
-- [ ] **3.2.1** Write `prompts/planner/v1.txt` — **most critical prompt in the system**
+- [x] **3.2.1** Write `prompts/planner/v1.txt` — **most critical prompt in the system**
   - Output: structured JSON DAG with `steps[].id` · `steps[].executor_type` · `steps[].depends_on` · `steps[].output_schema`
   - Hard constraints in prompt: max 20 steps · no circular deps · only registered executors
-- [ ] **3.2.2** Implement `planner.py`
+- [x] **3.2.2** Implement `planner.py`
   - Calls cheap model (phi4-local or GPT-mini) to generate DAG
   - Validates DAG JSON against schema before executing
   - Falls back to rule-based template planner if output invalid
-- [ ] **3.2.3** Implement `requirements_for(step, request)` — per-step `TaskRequirements` for per-step routing
-- [ ] **3.2.4** Write rule-based template planner (fallback)
+- [x] **3.2.3** Implement `requirements_for(step, request)` — per-step `TaskRequirements` for per-step routing
+- [x] **3.2.4** Write rule-based template planner (fallback)
   - Templates: `coding_workflow` · `document_workflow` · `research_workflow` · `writing_workflow` · `data_analysis_workflow`
 
 ### 3.3 Orchestrator
-- [ ] **3.3.1** Implement `Orchestrator.run()` — arch doc §21
+- [x] **3.3.1** Implement `Orchestrator.run()` — arch doc §21
   - Policy check → plan → DAG schedule → route → execute → verify → complete
   - Add: `max_repair_attempts` per step (default 2) · deadlock detection
-- [ ] **3.3.2** Persist workflow state to DB with resume support
-- [ ] **3.3.3** Emit SSE events at each lifecycle point — arch doc §57
+- [x] **3.3.2** Persist workflow state to DB with resume support
+- [x] **3.3.3** Emit SSE events at each lifecycle point — arch doc §57
 
 ### 3.4 Async Worker with Arq
-- [ ] **3.4.1** Implement `apps/worker/main.py` — Arq worker process
-- [ ] **3.4.2** Move `Orchestrator.run()` to background Arq job
-- [ ] **3.4.3** `POST /v1/tasks` → `202 Accepted` + `{task_id, run_id, status: "running"}`
-- [ ] **3.4.4** `GET /v1/runs/{run_id}/events` — SSE stream from Redis pub/sub
-- [ ] **3.4.5** `GET /v1/runs/{run_id}` · `GET /v1/runs/{run_id}/steps`
+- [x] **3.4.1** Implement `apps/worker/main.py` — Arq worker process
+- [x] **3.4.2** Move `Orchestrator.run()` to background Arq job
+- [x] **3.4.3** `POST /v1/tasks` → `202 Accepted` + `{task_id, run_id, status: "running"}`
+- [x] **3.4.4** `GET /v1/runs/{run_id}/events` — SSE stream from Redis pub/sub
+- [x] **3.4.5** `GET /v1/runs/{run_id}` · `GET /v1/runs/{run_id}/steps`
 
 ### 3.5 Tests
-- [ ] **3.5.1** Unit: DAG scheduling · parallel step detection · cycle detection · deadlock
-- [ ] **3.5.2** Integration: multi-step workflow (mock models)
-- [ ] **3.5.3** E2E: "Analyze scanned PDF → extract → calculate → write report → export DOCX"
+- [x] **3.5.1** Unit: DAG scheduling · parallel step detection · cycle detection · deadlock
+- [x] **3.5.2** Integration: multi-step workflow (mock models)
+- [x] **3.5.3** E2E: "Analyze scanned PDF → extract → calculate → write report → export DOCX"
+
 
 **✅ Milestone 3 Deliverable:** Autonomous plan generation → DAG execution → SSE stream of live progress to client.
 
