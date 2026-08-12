@@ -26,6 +26,10 @@ class Settings(BaseSettings):
     ollama_base_url: str = "http://localhost:11434"
     ollama_coding_model: str = "qwen2.5-coder:7b-instruct-q8_0"
     ollama_general_model: str = "phi4:14b-q4_K_M"
+    ollama_embedding_model: str = "nomic-embed-text"
+
+    openai_embedding_model: str = "text-embedding-3-small"
+    embedding_dimensions: int = 768
 
     artifact_root: str = "/data/artifacts"
 

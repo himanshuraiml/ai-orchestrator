@@ -8,7 +8,7 @@ from fastapi.responses import Response
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 
 from orchestrator.api.middleware import RequestContextMiddleware
-from orchestrator.api.routes import health, tasks
+from orchestrator.api.routes import files, health, tasks
 from orchestrator.api.routes.tasks import DEFAULT_USER_ID
 from orchestrator.config.logging import configure_logging
 from orchestrator.config.settings import get_settings
@@ -45,6 +45,7 @@ app.add_middleware(RequestContextMiddleware)
 
 app.include_router(health.router)
 app.include_router(tasks.router)
+app.include_router(files.router)
 
 
 @app.get("/metrics")

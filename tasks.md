@@ -188,17 +188,23 @@
 
 ## Phase 4 — Context Manager & RAG
 
-- [ ] **4.1** Implement `ContextManager` — arch doc §27
+- [x] **4.1** Implement `ContextManager` — arch doc §27
   - `ingest_file()` → parse → chunk → embed → store in `document_chunks`
   - `retrieve(query, top_k)` → pgvector ANN search
   - `build_context(query, token_budget)` → retrieve + rerank + compress
-- [ ] **4.2** Implement `chunker.py` — semantic chunking (512 tokens + 64 overlap)
-- [ ] **4.3** Implement `embeddings.py`
-  - Local: `nomic-embed-text` via Ollama (free, no API cost)
-  - Fallback: OpenAI `text-embedding-3-small`
-- [ ] **4.4** Implement `retriever.py` — pgvector cosine similarity search
-- [ ] **4.5** Implement `assembler.py` — token-budget-aware context assembly
-- [ ] **4.6** Implement `POST /v1/files` — upload → ingest → return `file_id`
+  - Parsing dispatches to the Phase 2 adapters: OCRAdapter (PDF/image) · PandocAdapter (everything else Pandoc understands, → markdown) · direct read (txt/md)
+- [x] **4.2** Implement `chunker.py` — semantic chunking (512 tokens + 64 overlap)
+  - Packs paragraphs into token-budgeted windows (tiktoken `cl100k_base`); hard-splits any paragraph that alone exceeds the chunk size
+- [x] **4.3** Implement `embeddings.py`
+  - Local: `nomic-embed-text` via Ollama (free, no API cost) — **note:** not pulled by default (see 0.7); run `ollama pull nomic-embed-text` for local embeddings to work, otherwise falls back automatically
+  - Fallback: OpenAI `text-embedding-3-small`, requested at `dimensions=768` to match nomic's native size
+  - **Gap fixed vs. arch doc:** `EMBEDDING_DIM` (db/models.py) changed from 1536 → 768 to match nomic-embed-text's native dimension (Phase 1's placeholder value) — migration `0003_embedding_dim_768.py`, no data loss (tables were empty)
+- [x] **4.4** Implement `retriever.py` — pgvector cosine similarity search
+  - HNSW index (`vector_cosine_ops`) added on `document_chunks.embedding` in the same migration
+- [x] **4.5** Implement `assembler.py` — token-budget-aware context assembly
+  - Greedily packs whole chunks (already relevance-ordered by the retriever) into the budget; never truncates a chunk mid-sentence
+- [x] **4.6** Implement `POST /v1/files` — upload → ingest → return `file_id`
+  - Verified end-to-end against the real dev DB: `.txt` (direct read) · `.pdf` (OCR) · `.docx` (Pandoc → markdown) all ingest, chunk, embed (768-dim, real nomic-embed-text via Ollama), and are retrievable via `ContextManager.retrieve`/`build_context`
 
 ---
 

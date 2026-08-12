@@ -10,7 +10,10 @@ from sqlalchemy.sql import func
 
 from orchestrator.db.base import Base
 
-EMBEDDING_DIM = 1536
+# nomic-embed-text (the local/default embedder — tasks.md 4.3) natively
+# outputs 768 dims; the OpenAI fallback requests the same via its
+# `dimensions` param so both providers share one pgvector column.
+EMBEDDING_DIM = 768
 
 
 def _uuid_pk() -> Mapped[uuid.UUID]:

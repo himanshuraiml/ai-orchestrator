@@ -6,6 +6,8 @@ from fastapi import Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from orchestrator.config.settings import get_settings, load_model_profiles, load_routing_config
+from orchestrator.context.embeddings import get_embedder
+from orchestrator.context.manager import ContextManager
 from orchestrator.db.session import get_session, get_sessionmaker
 from orchestrator.orchestration.executor import (
     DocumentExecutor,
@@ -70,6 +72,16 @@ async def get_arq_pool(request: Request) -> ArqRedis:
     """Set up in apps/api/main.py's lifespan, so this is never None once
     the app is actually serving requests."""
     return request.app.state.arq_pool
+
+
+@lru_cache
+def get_context_manager() -> ContextManager:
+    mcp_client = MCPToolClient()
+    return ContextManager(
+        embedder=get_embedder(),
+        ocr_adapter=OCRAdapter(mcp_client),
+        pandoc_adapter=PandocAdapter(mcp_client),
+    )
 
 
 @lru_cache
