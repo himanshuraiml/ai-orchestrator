@@ -1,0 +1,41 @@
+routing:
+
+  weights:
+
+    quality:
+      low: 0.15
+      standard: 0.30
+      high: 0.50
+      critical: 0.70
+
+    cost: 0.15
+    latency: 0.10
+    reliability: 0.20
+    historical_success: 0.15
+
+  task_preferences:
+
+    brainstorming:
+      capabilities:
+        - brainstorming
+
+    coding:
+      capabilities:
+        - coding
+        - reasoning
+
+    document_analysis:
+      capabilities:
+        - document_analysis
+        - long_context
+
+    private:
+      privacy: local
+
+  fallback:
+    max_attempts: 3
+    provider_diversity: true
+
+  # Personal-budget guardrail: stop exploring alternative/experimental
+  # candidates once remaining daily budget drops below this.
+  exploration_disabled_if_budget_remaining: 0.50

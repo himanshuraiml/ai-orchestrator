@@ -1,0 +1,35 @@
+# Tool permission policies — arch doc §25. Full enforcement lands in
+# Phase 2 (tools/permissions.py); PolicyEngine.tool_allowed() here is the
+# minimal check the router/orchestrator can call in the meantime.
+policies:
+
+  default:
+    filesystem:
+      read: true
+      write: false
+    network:
+      enabled: false
+    shell:
+      enabled: false
+    python:
+      enabled: true
+
+  coding:
+    filesystem:
+      read: true
+      write: true
+    network:
+      enabled: false
+    shell:
+      enabled: true
+    git:
+      enabled: true
+
+  document:
+    filesystem:
+      read: true
+      write: true
+    network:
+      enabled: true
+    shell:
+      enabled: false

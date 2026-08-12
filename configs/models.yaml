@@ -1,0 +1,84 @@
+# Model registry. Provider API keys live in .env, never here.
+models:
+
+  openai_primary:
+    provider: openai
+    model: gpt-4.1
+    capabilities:
+      - reasoning
+      - brainstorming
+      - writing
+      - vision
+      - structured_output
+    context_window: 128000
+    quality_score: 0.93
+    cost_score: 0.60
+    latency_score: 0.80
+    privacy_class: cloud
+    enabled: true
+
+  claude_coding:
+    provider: anthropic
+    model: claude-sonnet-5
+    capabilities:
+      - coding
+      - reasoning
+      - code_review
+      - long_context
+    context_window: 200000
+    quality_score: 0.96
+    cost_score: 0.65
+    latency_score: 0.80
+    privacy_class: cloud
+    enabled: true
+
+  gemini_documents:
+    provider: google
+    model: gemini-2.5-pro
+    capabilities:
+      - document_analysis
+      - multimodal
+      - long_context
+      - extraction
+    context_window: 1000000
+    quality_score: 0.92
+    cost_score: 0.75
+    latency_score: 0.75
+    privacy_class: cloud
+    enabled: true
+
+  local_coder:
+    provider: ollama
+    # Using the already-pulled `qwen2.5-coder:7b` tag rather than the
+    # `-instruct-q8_0` variant from tasks.md Phase 0.7 (an ~8GB re-download
+    # deferred for now — pull it and update this when you want the quality
+    # bump).
+    model: qwen2.5-coder:7b
+    capabilities:
+      - coding
+      - reasoning
+      - code_execution
+      - private
+    context_window: 32000
+    quality_score: 0.68
+    cost_score: 1.0
+    latency_score: 0.70
+    privacy_class: local
+    enabled: true
+
+  local_general:
+    provider: ollama
+    # Not pulled locally yet (`ollama pull phi4:14b-q4_K_M`, ~9GB) — this
+    # entry will fail at invocation time until then.
+    model: phi4:14b-q4_K_M
+    capabilities:
+      - classification
+      - extraction
+      - summarization
+      - private
+    context_window: 16000
+    quality_score: 0.72
+    cost_score: 1.0
+    latency_score: 0.65
+    privacy_class: local
+    enabled: true

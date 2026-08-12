@@ -1,0 +1,85 @@
+services:
+
+  postgres:
+    image: pgvector/pgvector:pg17
+    mem_limit: 512m
+    environment:
+      POSTGRES_DB: orchestrator
+      POSTGRES_USER: orchestrator
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-orchestrator}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U orchestrator -d orchestrator"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7.4-alpine
+    mem_limit: 256m
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  ollama:
+    image: ollama/ollama:0.32.6
+    mem_limit: 2g
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: uv run uvicorn apps.api.main:app --host 0.0.0.0 --port 8000
+    env_file:
+      - .env
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./src:/app/src
+      - ./apps:/app/apps
+      - ./configs:/app/configs
+      - ./prompts:/app/prompts
+      - artifacts:/data/artifacts
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: uv run python apps/worker/main.py
+    env_file:
+      - .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./src:/app/src
+      - ./apps:/app/apps
+      - ./configs:/app/configs
+      - ./prompts:/app/prompts
+      - artifacts:/data/artifacts
+
+volumes:
+  postgres_data:
+  redis_data:
+  ollama_data:
+  artifacts:

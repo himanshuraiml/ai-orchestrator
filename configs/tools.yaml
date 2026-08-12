@@ -1,0 +1,135 @@
+# Tool registry. Dynamically loaded by orchestrator.tools.registry.
+#
+# `server` names an MCP server under tools/mcp/<server>/server.py — those
+# tools are invoked via orchestrator.tools.mcp_client. `server: null` means
+# the tool is implemented in-process by its adapter (no MCP hop).
+tools:
+
+  python:
+    name: Python execution
+    description: Execute a Python snippet in a sandboxed subprocess and return stdout/stderr.
+    server: python
+    mcp_tool: execute
+    capabilities:
+      - computation
+      - data_analysis
+      - code_execution
+    requires_network: false
+    requires_filesystem: true
+    requires_approval: false
+    risk_level: medium
+    input_schema:
+      type: object
+      properties:
+        code:
+          type: string
+        timeout_seconds:
+          type: integer
+          default: 30
+      required:
+        - code
+
+  ocr:
+    name: OCR (PaddleOCR + PyMuPDF)
+    description: Extract text from a PDF or image, falling back to PaddleOCR for scanned pages.
+    server: ocr
+    mcp_tool: extract_text
+    capabilities:
+      - image_to_text
+      - pdf_to_text
+    requires_network: false
+    requires_filesystem: true
+    requires_approval: false
+    risk_level: low
+    input_schema:
+      type: object
+      properties:
+        file_path:
+          type: string
+        language:
+          type: string
+          default: en
+      required:
+        - file_path
+
+  pandoc:
+    name: Pandoc document conversion
+    description: Convert a document between formats (Markdown, DOCX, PDF, HTML) via Pandoc.
+    server: documents
+    mcp_tool: convert
+    capabilities:
+      - document_conversion
+    requires_network: false
+    requires_filesystem: true
+    requires_approval: false
+    risk_level: low
+    input_schema:
+      type: object
+      properties:
+        input_path:
+          type: string
+        output_path:
+          type: string
+        to_format:
+          type: string
+      required:
+        - input_path
+        - output_path
+
+  filesystem:
+    name: Filesystem read/write
+    description: Read/write files restricted to the artifact workspace root.
+    server: null
+    capabilities:
+      - file_read
+      - file_write
+    requires_network: false
+    requires_filesystem: true
+    requires_approval: false
+    risk_level: medium
+    input_schema:
+      type: object
+      properties:
+        operation:
+          type: string
+          enum: [read, write, list]
+        path:
+          type: string
+        content:
+          type: string
+      required:
+        - operation
+        - path
+
+  browser:
+    name: Web search / navigation
+    description: Web search via the Brave Search API.
+    server: null
+    capabilities:
+      - web_search
+      - web_navigation
+    requires_network: true
+    requires_filesystem: false
+    requires_approval: false
+    risk_level: medium
+    input_schema:
+      type: object
+      properties:
+        query:
+          type: string
+        count:
+          type: integer
+          default: 5
+      required:
+        - query
+
+  git:
+    name: Git operations
+    description: Git operations (not yet implemented — no adapter registered).
+    server: null
+    capabilities:
+      - version_control
+    requires_network: false
+    requires_filesystem: true
+    requires_approval: true
+    risk_level: high
